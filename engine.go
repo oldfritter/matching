@@ -36,7 +36,11 @@ type Trade struct {
 }
 
 func InitializeEngine(marketId int, options Options) Engine {
-	engine := Engine{MarketId: marketId, OrderBookManager: OrderBookManager{MarketId: marketId}, Options: options}
+	engine := Engine{
+		MarketId:         marketId,
+		OrderBookManager: InitializeOrderBookManager(marketId, map[string]string{}),
+		Options:          options,
+	}
 }
 
 func (engine *Engine) AskOrderBook() OrderBook {
@@ -126,8 +130,14 @@ func (engine *Engine) isTiny(order Order) (result bool) {
 	return order.Volume < minVolume
 }
 
-// TODO
-func (engine *Engine) LimitOrders()
+func (engine *Engine) LimitOrders() (result map[string]map[string][]Order) {
+	result["ask"] = engine.AskOrderBook.LimitOrders()
+	result["bid"] = engine.BidOrderBook.LimitOrders()
+	return
+}
 
-// TODO
-func (engine *Engine) MarketOrders()
+func (engine *Engine) MarketOrders() (result map[string][]Order) {
+	result["ask"] = engine.AskOrderBook.MarketOrders()
+	result["bid"] = engine.BidOrderBook.MarketOrders()
+	return
+}

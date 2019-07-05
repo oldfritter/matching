@@ -94,6 +94,10 @@ func (ob *OrderBook) LimitOrders() (orders map[string][]Order) {
 	return
 }
 
+func (ob *OrderBook) MarketOrders() (orders []Order) {
+	ob.MarketOrders.Values()
+}
+
 func (ob *OrderBook) Add(order Order) error {
 	if order.Volume.LessThanOrEqual(decimal.NewFromFloat(0.0)) {
 		return fmt.Errorf("volume is zero")
