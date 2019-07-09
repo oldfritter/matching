@@ -6,15 +6,16 @@ type OrderBookManager struct {
 	BidOrderBook OrderBook
 }
 
-func InitializeOrderBookManager(marketId int, options map[string]interface{}) (orderBookManager OrderBookManager) {
+func InitializeOrderBookManager(marketId int, options map[string]string) (orderBookManager OrderBookManager) {
 	orderBookManager.MarketId = marketId
 	orderBookManager.AskOrderBook = InitializeOrderBook(marketId, "ask", options)
 	orderBookManager.BidOrderBook = InitializeOrderBook(marketId, "bid", options)
+	return
 }
 
 func (obm *OrderBookManager) GetBooks(stype string) (OrderBook, OrderBook) {
 	if stype == "ask" {
-		return AskOrderBook, BidOrderBook
+		return obm.AskOrderBook, obm.BidOrderBook
 	}
-	return BidOrderBook, AskOrderBook
+	return obm.BidOrderBook, obm.AskOrderBook
 }

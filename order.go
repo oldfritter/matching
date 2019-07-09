@@ -1,6 +1,9 @@
 package matching
 
 import (
+	"fmt"
+	"strconv"
+
 	"github.com/shopspring/decimal"
 )
 
@@ -34,18 +37,18 @@ func (order *Order) TradeWith(counterOrder Order, counterBook OrderBook) (trade 
 		if order.IsCrossed(counterOrder.Price) {
 			trade.Price = counterOrder.Price
 			trade.Volume = order.Volume
-			if order.Volume > counterOrder.Volume {
+			if order.Volume.GreaterThan(counterOrder.Volume) {
 				trade.Volume = counterOrder.Volume
 			}
 			trade.Funds = trade.Price.Mul(trade.Volume)
 		}
 	} else {
 		trade.Volume = order.Volume
-		if trade.Volume > counterOrder.Volume {
+		if trade.Volume.GreaterThan(counterOrder.Volume) {
 			trade.Volume = counterOrder.Volume
 		}
 		volumeLimit := counterOrder.VolumeLimit(order.Price)
-		if trade.Volume > volumeLimit {
+		if trade.Volume.GreaterThan(volumeLimit) {
 			trade.Volume = volumeLimit
 		}
 	}
@@ -69,7 +72,7 @@ func (order *Order) IsValid() (result bool) {
 	return
 }
 
-func (order *Order) isFilled() (result bool) {
+func (order *Order) IsFilled() (result bool) {
 	if order.OrderType == "LimitOrder" {
 		result = order.Volume.LessThanOrEqual(decimal.NewFromFloat(0.0))
 	} else if order.OrderType == "MarketOrder" {
@@ -79,7 +82,7 @@ func (order *Order) isFilled() (result bool) {
 }
 
 func (order *Order) Fill(trade Trade) {
-	if trade.Volume > order.Volume {
+	if trade.Volume.GreaterThan(order.Volume) {
 		return
 	}
 	if order.OrderType == "LimitOrder" {
@@ -89,10 +92,10 @@ func (order *Order) Fill(trade Trade) {
 	if order.Type == "ask" {
 		funds = trade.Volume
 	}
-	if funds > order.Locked {
+	if funds.GreaterThan(order.Locked) {
 		return
 	}
-	order.Locked -= funds
+	order.Locked = order.Locked.Sub(funds)
 	return
 }
 

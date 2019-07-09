@@ -12,6 +12,7 @@ type PriceLevel struct {
 func InitializePriceLevel(price decimal.Decimal) (pl PriceLevel) {
 	pl.Price = price
 	pl.Orders = []Order{}
+	return
 }
 
 func (pl *PriceLevel) Top() Order {

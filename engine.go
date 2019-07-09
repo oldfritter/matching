@@ -1,6 +1,8 @@
 package matching
 
 import (
+	"fmt"
+
 	"github.com/shopspring/decimal"
 )
 
@@ -35,8 +37,12 @@ type Trade struct {
 	Funds  decimal.Decimal
 }
 
+func (trade *Trade) isNotValidated() bool {
+	return trade.Price.IsZero() || trade.Volume.IsZero()
+}
+
 func InitializeEngine(marketId int, options Options) Engine {
-	engine := Engine{
+	return Engine{
 		MarketId:         marketId,
 		OrderBookManager: InitializeOrderBookManager(marketId, map[string]string{}),
 		Options:          options,
@@ -52,16 +58,16 @@ func (engine *Engine) BidOrderBook() OrderBook {
 }
 
 func (engine *Engine) Submit(order Order) {
-	book, counterBook = engine.OrderBookManager.GetBooks(order.Type)
-	engine.matchLimitOrder(order, counterBook)
-	engine.addOrCancelLimitOrder(order, book)
+	book, counterBook := engine.OrderBookManager.GetBooks(order.Type)
+	engine.match(order, counterBook)
+	engine.addOrCancel(order, book)
 }
 
 func (engine *Engine) Cancel(order Order) {
-	book, counterBook = engine.OrderBookManager.GetBooks(order.Type)
-	removedOrder = book.Remove(order)
-	if removedOrder != nil {
-		engin.publishCancel(removedOrder, "cancelled by user")
+	book, _ := engine.OrderBookManager.GetBooks(order.Type)
+	removedOrder, err := book.Remove(order)
+	if err == nil {
+		engine.publishCancel(removedOrder, "cancelled by user")
 	} else {
 		// Matching.logger.warn "Cannot find order##{order.id} to cancel, skip."
 	}
@@ -69,15 +75,15 @@ func (engine *Engine) Cancel(order Order) {
 }
 
 func (engine *Engine) match(order Order, counterBook OrderBook) {
-	if order.Filled() || engine.isTiny(order) {
+	if order.IsFilled() || engine.isTiny(order) {
 		return
 	}
-	counterOrder = counterBook.Top()
-	if counterOrder == nil {
+	counterOrder := counterBook.Top()
+	if counterOrder.Id == 0 {
 		return
 	}
 	trade := order.TradeWith(counterOrder, counterBook)
-	if trade == nil {
+	if trade.isNotValidated() {
 		return
 	}
 	counterBook.FillTop(trade)
@@ -87,7 +93,7 @@ func (engine *Engine) match(order Order, counterBook OrderBook) {
 }
 
 func (engine *Engine) addOrCancel(order Order, book OrderBook) {
-	if order.Filled() {
+	if order.IsFilled() {
 		return
 	}
 	if order.OrderType == "LimitOrder" {
@@ -107,6 +113,8 @@ func (engine *Engine) publish(order, counterOrder Order, trade Trade) {
 		ask = counterOrder
 		bid = order
 	}
+	fmt.Println(ask)
+	fmt.Println(bid)
 	// logger 记录订单成交
 	return
 }
@@ -121,23 +129,29 @@ func (engine *Engine) isTiny(order Order) (result bool) {
 	if engine.Options.Ask.Fixed != 0 {
 		fixed = engine.Options.Ask.Fixed
 	}
-	cas := 1
+	cas := decimal.NewFromFloat(1)
 	for fixed > 0 {
-		cas *= 10
+		cas = cas.Mul(decimal.NewFromFloat(10))
 		fixed--
 	}
 	minVolume := decimal.NewFromFloat(1.0).Div(cas)
-	return order.Volume < minVolume
+	return order.Volume.LessThan(minVolume)
 }
 
 func (engine *Engine) LimitOrders() (result map[string]map[string][]Order) {
-	result["ask"] = engine.AskOrderBook.LimitOrders()
-	result["bid"] = engine.BidOrderBook.LimitOrders()
+	askOrderBook := engine.AskOrderBook()
+	bidOrderBook := engine.BidOrderBook()
+	result["ask"] = askOrderBook.LimitOrdersMap()
+	result["bid"] = bidOrderBook.LimitOrdersMap()
 	return
 }
 
 func (engine *Engine) MarketOrders() (result map[string][]Order) {
-	result["ask"] = engine.AskOrderBook.MarketOrders()
-	result["bid"] = engine.BidOrderBook.MarketOrders()
+	askOrderBook := engine.AskOrderBook()
+	bidOrderBook := engine.BidOrderBook()
+	result["ask"] = askOrderBook.MarketOrdersMap()
+	result["bid"] = bidOrderBook.MarketOrdersMap()
+	// result["ask"] = engine.AskOrderBook.MarketOrders()
+	// result["bid"] = engine.BidOrderBook.MarketOrders()
 	return
 }
