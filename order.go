@@ -10,12 +10,12 @@ import (
 type Order struct {
 	Id            int
 	MarketId      int
-	Timestamp     int64
 	Type          string
 	OrderType     string
 	Price         decimal.Decimal
 	Volume        decimal.Decimal
 	Locked        decimal.Decimal
+	Timestamp     int64
 	BasePrecision int
 }
 
@@ -28,7 +28,11 @@ func InitializeOrder(attrs map[string]string) (order Order, err error) {
 	order.Volume, _ = decimal.NewFromString(attrs["volume"])
 	order.Price, _ = decimal.NewFromString(attrs["price"])
 	order.Locked, _ = decimal.NewFromString(attrs["locked"])
-	order.BasePrecision, _ = strconv.Atoi(attrs["base_precision"])
+	if attrs["base_precision"] == "" {
+		order.BasePrecision = 8
+	} else {
+		order.BasePrecision, _ = strconv.Atoi(attrs["base_precision"])
+	}
 	return
 }
 
