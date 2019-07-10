@@ -1,8 +1,6 @@
 package matching
 
 import (
-	"fmt"
-
 	"github.com/shopspring/decimal"
 )
 
@@ -13,7 +11,18 @@ var (
 type Engine struct {
 	MarketId         int
 	OrderBookManager OrderBookManager
+	Traded           chan Offer
+	Canceled         chan int
 	Options          Options
+}
+
+type Offer struct {
+	MarketId    int             `json:"market_id"`
+	AskId       int             `json:"ask_id"`
+	BidId       int             `json:"bid_id"`
+	StrikePrice decimal.Decimal `json:"strike_price"`
+	Volume      decimal.Decimal `json:"volume"`
+	Funds       decimal.Decimal `json:"funds"`
 }
 type Options struct {
 	Id              int
@@ -46,6 +55,8 @@ func InitializeEngine(marketId int, options Options) Engine {
 		MarketId:         marketId,
 		OrderBookManager: InitializeOrderBookManager(marketId, map[string]string{}),
 		Options:          options,
+		Traded:           make(chan Offer, 5),
+		Canceled:         make(chan int, 3),
 	}
 }
 
@@ -113,13 +124,21 @@ func (engine *Engine) publish(order, counterOrder Order, trade Trade) {
 		ask = counterOrder
 		bid = order
 	}
-	fmt.Println(ask)
-	fmt.Println(bid)
+	offer := Offer{
+		MarketId:    order.MarketId,
+		AskId:       ask.Id,
+		BidId:       bid.Id,
+		StrikePrice: trade.Price,
+		Volume:      trade.Volume,
+		Funds:       trade.Funds,
+	}
+	engine.Traded <- offer
 	// logger 记录订单成交
 	return
 }
 
 func (engine *Engine) publishCancel(order Order, reson string) {
+	engine.Canceled <- order.Id
 	// logger 记录订单取消
 	return
 }
